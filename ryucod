@@ -1,0 +1,542 @@
+import java.awt.*;
+import java.awt.event.*;
+import java.util.*;
+import java.io.*;
+
+public class CustomerManager extends Frame implements KeyListener, ActionListener, ItemListener{
+
+	//멤버필드
+	//화면에 필요한 구성요소-----------------------------------------------------------------------
+	private TextField nametf = new TextField(25);
+	
+	private TextField jumin1tf = new TextField(6);
+	private TextField jumin2tf = new TextField(7);
+	
+	private Choice telch = new Choice();
+		private String[] tstr = {"010", "011", "016", "017", "018", "019"};
+	private TextField tel1tf = new TextField(4);
+	private TextField tel2tf = new TextField(4);
+	
+	private CheckboxGroup cg = new CheckboxGroup();
+		private Checkbox man = new Checkbox("남성", true, cg);
+		private Checkbox woman = new Checkbox("여성", false, cg);
+		
+	private String[] hstr = {"영화", "음악", "독서", "게임", "쇼핑"};
+	private Checkbox[] hobby = new Checkbox[hstr.length];
+	
+	private Button addbt = new Button("등록");
+	private Button dispbt = new Button("분석");
+	private Button updatebt = new Button("수정");
+	private Button delbt = new Button("삭제");
+	private Button initbt = new Button("입력모드");
+	
+	private java.awt.List listli = new java.awt.List();
+	
+	private TextArea infota = new TextArea();
+	
+	// 다이얼로그에 필요한 구성요소 --------------------------------------------------------
+	private Dialog dialog = new Dialog(this, "CMS", true);
+	private Label dlabel = new Label("Cusotmer Manager V1.0", Label.CENTER);
+	private Button dbt = new Button("Check");
+	
+	// 메뉴에 필요한 구성요소 -------------------------------------------------------------
+	private MenuBar mb = new MenuBar();	
+	private Menu mfile = new Menu("File");
+		private MenuItem mfnew = new MenuItem("New file");
+		private MenuItem mfopen = new MenuItem("Open");
+		private MenuItem mfsave = new MenuItem("Save");
+		private MenuItem mfsaveas = new MenuItem("Save as");
+		private MenuItem mfexit = new MenuItem("Exit");
+		
+	private Menu mhelp = new Menu("Help");
+		private MenuItem mhver = new MenuItem("Version");
+	
+	// 처리에 필요한 구성요소--------------------------------------------------------------
+	private java.util.List<Customer> data = new ArrayList<Customer>();	
+	private FileDialog fd = null;
+	private File file = null;
+	
+	private ObjectOutputStream oos = null;
+	
+	//생성자
+	public CustomerManager() {
+		super("CustomerManager");
+		setMenu();//메뉴 구성
+		setDialog();//다이얼로그 구성
+		setEvent();//이벤트 구성
+		buildGUI();//화면 구성
+	}
+	
+	//메서드
+	public void setButton(boolean state) {//버튼 활성화 여부
+		addbt.setEnabled(state);
+		dispbt.setEnabled(!state);
+		updatebt.setEnabled(!state);
+		delbt.setEnabled(!state);
+		initbt.setEnabled(!state);
+	}
+	
+	public void clrscr() {//화면 지우기
+		nametf.setText("");
+		jumin1tf.setText("");
+		jumin2tf.setText("");
+		telch.select(0);
+		tel1tf.setText("");
+		tel2tf.setText("");
+		man.setState(true);
+		for(Checkbox myHobby : hobby) myHobby.setState(false);
+		infota.setText("");
+		nametf.requestFocus();
+	}
+	
+	public void setForm(boolean state) {//화면 활성화 여부
+		nametf.setEnabled(state);
+		jumin1tf.setEnabled(state);
+		jumin2tf.setEnabled(state);
+		man.setEnabled(state);
+		woman.setEnabled(state);
+	}
+	
+	public void setEvent() {//이벤트 연결
+		mfsaveas.addActionListener(this);
+		mfsave.addActionListener(this);
+		mfopen.addActionListener(this);
+		mfnew.addActionListener(this);
+		dbt.addActionListener(this);//다이얼로그 버튼 액션
+		mhver.addActionListener(this);//메뉴 버전확인 버튼 액션
+		mfexit.addActionListener(this);//메뉴 나가기 버튼 액션
+		initbt.addActionListener(this);//초기화 버튼 액션
+		delbt.addActionListener(this);//삭제 버튼 액션
+		updatebt.addActionListener(this);//수정 버튼 액션
+		dispbt.addActionListener(this);//조회 버튼 액션
+		listli.addItemListener(this);//리스트 아이템리스너
+		addbt.addActionListener(this);//추가 버튼 액션
+		tel1tf.addActionListener(this);//번호1 액션
+		telch.addItemListener(this);//010 넘어가기(choice)
+		jumin2tf.addKeyListener(this);
+		jumin1tf.addKeyListener(this);
+		nametf.addActionListener(this);//이름 넘어가기 액션
+		
+		addWindowListener(new WindowAdapter() {
+			public void windowClosing(WindowEvent e) {
+				System.exit(0);
+			}
+		});
+	}
+	
+	@Override
+	public void actionPerformed(ActionEvent e) {
+		if(e.getSource() == nametf) {
+			jumin1tf.requestFocus(); return;
+		}
+		if(e.getSource() == tel1tf){
+	        tel2tf.requestFocus(); return;
+	    }
+		if(e.getSource() == addbt) {//등록버튼
+			String name = nametf.getText().trim();
+			String jumin = jumin1tf.getText().trim() + jumin2tf.getText().trim();
+			String tel = telch.getSelectedItem() + "-" + tel1tf.getText().trim() + "-" + tel2tf.getText().trim();
+			boolean gender = man.getState();
+			String myHobby = "";
+			for(int i=0; i<hobby.length;i++) {
+				if(hobby[i].getState()) myHobby += hobby[i].getLabel() + "-";
+			}
+			if(myHobby.length() == 0) {//취미를 하나도 체크 안한 경우
+				myHobby = "없음";
+			}else {//일부 체크한 경우 : 영화-음악-
+				myHobby = myHobby.substring(0,myHobby.length()-1);
+			}
+			
+			Customer myCustomer = new Customer(name, jumin, tel, gender, myHobby);
+			data.add(myCustomer);
+			listli.add(myCustomer.toString());
+			infota.setText("\n\t성공적으로 등록되었습니다.");
+			try {
+				Thread.sleep(1000);
+			}catch(InterruptedException ie) {}
+			clrscr();//화면지우기
+		}//end 등록
+		
+		if(e.getSource() == dispbt) {//분석버튼
+			//주민번호를 얻어와서 주민번호 분석결과를 infota에 출력
+			infota.setText("\n\t주민번호 분석결과 작성");
+			return;
+		}//end 분석
+		
+		if(e.getSource() == updatebt) {//수정버튼
+			int index = listli.getSelectedIndex();
+			
+			Customer myCustomer = data.get(index);
+			
+			String tel = telch.getSelectedItem() + "-" + tel1tf.getText().trim() + "-" + tel2tf.getText().trim();
+			
+			String myHobby = "";
+			for(int i=0; i<hobby.length; i++) {
+				if(hobby[i].getState())
+					myHobby += hobby[i].getLabel() + "-";
+			}
+			if(myHobby.length() == 0){//취미를 하나도 체크 안한 경우
+		        myHobby = "없음";
+		    }else{// 일부체크한경우 : 영화-음악-
+		        myHobby = myHobby.substring(0, myHobby.length()-1);
+		    }
+			
+			myCustomer.setTel(tel);
+	        myCustomer.setHobby(myHobby);
+
+	        infota.setText("\n\t성공적으로 수정되었습니다.");
+	        try{
+	           Thread.sleep(1000);
+	        }catch(InterruptedException ie){  }
+	        setButton(true);
+	        setForm(true);
+	        clrscr();
+		}//end 수정
+		
+		if(e.getSource() == delbt) {//삭제버튼
+			int index = listli.getSelectedIndex();
+			
+			listli.remove(index);
+			data.remove(index);
+			infota.setText("\n\t성공적으로 삭제되었습니다.");
+	        try{
+	           Thread.sleep(1000);
+	        }catch(InterruptedException ie){  }
+	        setButton(true);
+	        setForm(true);
+	        clrscr();
+		}//end 삭제
+		
+		if(e.getSource() == initbt) {//입력모드전환
+			setButton(true);
+			setForm(true);
+			clrscr();
+		}//end 입력모드
+		
+		if(e.getSource() == mfexit) {//메뉴 : file-exit
+			System.exit(0);
+		}
+		if(e.getSource() == mhver) {//메뉴 : 다이얼로그 띄우기
+			dialog.setVisible(true);
+		}
+		if(e.getSource() == dbt) {//다이얼로그 버튼
+			dialog.setVisible(false);
+		}
+		if(e.getSource() == mfnew){//새파일
+			listli.removeAll();
+			data.clear();
+			file = null;
+			return;
+		}
+		if(e.getSource() == mfopen){//불러오기
+			fd = new FileDialog(this, "고객정보저장", FileDialog.LOAD);
+			fd.setVisible(true);
+			String fileName = fd.getFile();
+			String folder = fd.getDirectory();
+			if(fileName == null || folder == null) return;
+			file = new File(folder,fileName);
+			loadData();//파일 불러오기
+		}
+		if(e.getSource() == mfsave){//저장하기
+			if(file == null) {
+				fd = new FileDialog(this, "고객정보저장", FileDialog.SAVE);
+				fd.setVisible(true);
+				String fileName = fd.getFile();
+				String folder = fd.getDirectory();
+				if(fileName == null || folder == null) return;
+				file = new File(folder, fileName);
+			}
+			saveData();//파일저장
+		}
+		if(e.getSource() == mfsaveas){//새이름으로 저장하기
+			fd = new FileDialog(this, "고객정보저장", FileDialog.SAVE);
+			fd.setVisible(true);
+			String fileName = fd.getFile();
+			String folder = fd.getDirectory();
+			if(fileName == null || folder == null) return;
+			file = new File(folder, fileName);
+			saveData();//파일저장
+		}
+	}//end actionPerformed
+	
+	public void loadData() {//파일 불러오기
+		listli.removeAll();
+		data.clear();
+		ObjectInputStream ois = null;
+		try {
+			ois = new ObjectInputStream(
+					new FileInputStream("c:/myProject/obj.sav"));
+			Customer customer = (Customer)ois.readObject();
+			System.out.println("이름: " + customer.getName());
+			System.out.println("주민번호: " + customer.getJumin());
+			System.out.println("전화번호: " + customer.getTel());
+			System.out.println("성별: " + customer.isGender());
+			System.out.println("취미: " + customer.getHobby());
+		}catch(ClassNotFoundException e) {
+			e.printStackTrace();
+		}catch(FileNotFoundException e) {
+			e.printStackTrace();
+		}catch(IOException e) {
+			e.printStackTrace();
+		}finally {
+			try {
+				if(ois != null) {ois.close();}
+			}catch(IOException e) {}
+		}
+		/*FileReader fr = null;
+		BufferedReader br = null;
+		try {
+			fr = new FileReader(file);
+			br = new BufferedReader(fr);
+			String mdata = "";
+			while((mdata = br.readLine()) != null) {
+				String[] imsi = mdata.split("/");
+				boolean gen = false;
+				if(imsi[3].equals("남성")) gen = true;
+				Customer myCustomer = new Customer(imsi[0], imsi[1], imsi[2], gen, imsi[4]);
+				listli.add(myCustomer.toString());
+				data.add(myCustomer);
+			}
+			infota.setText("\n\t모든 데이터를 성공적으로 로딩하였습니다.");
+		}catch(IOException ioe){
+			ioe.printStackTrace();
+		}finally {
+			try {if(br != null) br.close();}catch(IOException ioe) {}
+			try {if(fr != null) fr.close();}catch(IOException ioe) {}
+		}*/
+	}
+	
+	public void saveData() {//파일 저장
+		FileWriter fw = null;
+		BufferedWriter bw = null;
+		PrintWriter pw = null;
+		try {
+			oos = new ObjectOutputStream(
+					new FileOutputStream("c:/myProject/CustomerData.sav"));
+			Customer customer = new Customer();
+			customer.getName();
+			customer.getJumin();
+			customer.getTel();
+			customer.isGender();
+			customer.getHobby();
+			oos.writeObject(customer);
+		}catch(FileNotFoundException e) {
+			e.printStackTrace();
+		}catch(IOException e) {
+			e.printStackTrace();
+		}finally {
+			try {
+				if(oos != null) {oos.close();}
+			}catch(IOException e) {}
+		}
+		/*FileWriter fw = null;
+		BufferedWriter bw = null;
+		PrintWriter pw = null;
+		try {
+			fw = new FileWriter(file);
+			bw = new BufferedWriter(fw);
+			pw = new PrintWriter(bw, true);
+			
+			for(int i=0; i<data.size(); i++) {
+				Customer myCustomer = data.get(i);
+				StringBuffer sb = new StringBuffer(myCustomer.getName());
+				sb.append("/");
+				sb.append(myCustomer.getJumin()); sb.append("/");
+				sb.append(myCustomer.getTel()); sb.append("/");
+				sb.append(myCustomer.isGender() ? "남성" : "여성"); sb.append("/");
+				sb.append(myCustomer.getHobby());
+				
+				pw.println(sb.toString());
+			}
+		}catch(IOException ioe){
+			ioe.printStackTrace();
+		}finally {
+			if(pw != null) pw.close();
+			try {if(bw != null) bw.close();}catch(IOException ioe) {}
+			try {if(fw != null) fw.close();}catch(IOException ioe) {}
+		}*/
+	}
+	
+	@Override
+	public void itemStateChanged(ItemEvent e) {
+		if(e.getSource() == telch) {
+			tel1tf.requestFocus(); return;
+		}
+		if(e.getSource() == listli) {//회원목록에서 특정 회원을 선택하면
+			int index = listli.getSelectedIndex();//리스트에서 선택한 위치를 얻어옴
+			
+			Customer myCustomer = data.get(index);//그 위치에 해당하는 고객정보를 얻음
+			
+			nametf.setText(myCustomer.getName());
+			jumin1tf.setText(myCustomer.getJumin().substring(0, 6));
+	        jumin2tf.setText(myCustomer.getJumin().substring(6));
+	        String[] myTel = myCustomer.getTel().split("-");
+	        telch.select(myTel[0]);
+	        tel1tf.setText(myTel[1]);
+	        tel2tf.setText(myTel[2]);
+	        man.setState(myCustomer.isGender());
+	        woman.setState(!myCustomer.isGender());
+	        for(Checkbox myHobby : hobby) myHobby.setState(false);
+	        StringTokenizer st = new StringTokenizer(myCustomer.getHobby(), "-");
+	        while(st.hasMoreTokens()){
+	           String imsi = st.nextToken();
+	           for(int i=0; i<hobby.length; i++){
+	              if(imsi.equals(hobby[i].getLabel())){
+	                 hobby[i].setState(true); break;
+	              }
+	           }
+	        }//end while
+	        
+	        setButton(false);
+	        setForm(false);
+	        telch.requestFocus();
+		}
+	}//end Item
+	
+	@Override
+	public void keyPressed(KeyEvent e){ 
+	}
+
+	@Override
+	public void keyReleased(KeyEvent e) {
+		if(e.getSource() == jumin1tf) {
+			if(jumin1tf.getText().trim().length() == 6)
+				jumin2tf.requestFocus(); return;
+		}
+		if(e.getSource() == jumin2tf) {
+			if(jumin2tf.getText().trim().length() == 7)
+				telch.requestFocus(); return;
+		}
+	}
+	
+	@Override
+	public void keyTyped(KeyEvent e) {		
+	}	
+	
+	public void setMenu() {//메뉴구성
+		setMenuBar(mb);
+		mb.add(mfile);
+			mfile.add(mfnew);
+			mfile.addSeparator();
+			mfile.add(mfopen);
+			mfile.add(mfsave);
+			mfile.add(mfsaveas);
+			mfile.addSeparator();
+			mfile.add(mfexit);
+			
+		mb.add(mhelp);
+			mhelp.add(mhver);
+	}
+	
+	public void setDialog() {//다이얼로그 구성
+		dialog.setLayout(new BorderLayout(3,3));
+		dialog.setFont(new Font("Sans-Serif", Font.BOLD, 20));
+		dbt.setFont(new Font("Sans-Serif", Font.BOLD, 20));
+		dialog.add("West", new Label(" "));
+		dialog.add("East", new Label(" "));
+		dialog.add("Center", dlabel);
+		dialog.add("South", dbt);
+		dialog.setSize(300,150);
+		
+		Dimension scr = Toolkit.getDefaultToolkit().getScreenSize();
+		Dimension mySize = dialog.getSize();
+		
+		dialog.setLocation(scr.width/2- mySize.width/2, scr.height/2-mySize.height/2);
+		dialog.setResizable(false);
+	}
+	
+	public void buildGUI() {//화면구성
+		setBackground(new Color(180,211,211));
+		setLayout(new BorderLayout(3, 3));
+		add("North", new Label());
+		add("South", new Label());
+		add("West", new Label());
+		add("East", new Label());
+		
+			Panel mainPanel = new Panel(new BorderLayout(3,3));
+				Panel cPanel = new Panel(new BorderLayout(3,3));
+					cPanel.add("North", new Label("고 객 정 보 입 력", Label.CENTER));
+					
+					Panel cwPanel = new Panel(new GridLayout(5,1,3,3));
+						cwPanel.add(new Label("이름: ", Label.RIGHT));
+						cwPanel.add(new Label("주민번호: ", Label.RIGHT));
+						cwPanel.add(new Label("전화번호: ", Label.RIGHT));
+						cwPanel.add(new Label("성별: ", Label.RIGHT));
+						cwPanel.add(new Label("취미: ", Label.RIGHT));
+					cPanel.add("West", cwPanel);
+					
+					cPanel.add("East", new Label());
+					
+					Panel csPanel = new Panel(new FlowLayout(FlowLayout.CENTER));
+						csPanel.add(addbt);
+						csPanel.add(dispbt);
+						csPanel.add(updatebt);
+						csPanel.add(delbt);
+						csPanel.add(initbt);
+					cPanel.add("South", csPanel);
+					
+					Panel ccPanel = new Panel(new GridLayout(5,1,3,3));
+						Panel p1 = new Panel(new FlowLayout(FlowLayout.LEFT));
+							p1.add(nametf);
+						ccPanel.add(p1);
+						
+						Panel p2 = new Panel(new FlowLayout(FlowLayout.LEFT));
+							p2.add(jumin1tf);
+							p2.add(new Label("-", Label.CENTER));
+							p2.add(jumin2tf);
+						ccPanel.add(p2);
+						
+						Panel p3 = new Panel(new FlowLayout(FlowLayout.LEFT));
+							for(String phoneNumber : tstr)
+								telch.add(phoneNumber);//전화번호 등록
+							p3.add(telch);
+							p3.add(new Label("-", Label.CENTER));
+							p3.add(tel1tf);
+							p3.add(new Label("-", Label.CENTER));
+							p3.add(tel2tf);
+						ccPanel.add(p3);
+						
+						Panel p4 = new Panel(new FlowLayout(FlowLayout.LEFT));
+							p4.add(man);
+							p4.add(woman);
+						ccPanel.add(p4);
+						
+						Panel p5 = new Panel(new FlowLayout(FlowLayout.LEFT));
+							for(int i=0; i<hobby.length; i++) {
+								hobby[i] = new Checkbox(hstr[i]);//취미를 초기화
+								p5.add(hobby[i]);
+							}
+						ccPanel.add(p5);
+					cPanel.add("Center", ccPanel);
+				mainPanel.add("Center", cPanel);
+				
+			Panel eastPanel = new Panel(new BorderLayout(3,3));
+				eastPanel.add("North", new Label("전 체 목 록", Label.CENTER));
+				eastPanel.add("Center", listli);
+			mainPanel.add("East", eastPanel);
+				
+			Panel southPanel = new Panel(new BorderLayout(3,3));
+				southPanel.add("North", new Label("고 객 정 보 분 석 결 과", Label.CENTER));
+				southPanel.add("Center", infota);
+			mainPanel.add("South", southPanel);
+		add("Center", mainPanel);
+		
+		pack();	
+		
+		Dimension scr = Toolkit.getDefaultToolkit().getScreenSize();//화면크기
+		Dimension my = getSize();
+		
+		setLocation(scr.width/2-my.width/2, scr.height/2-my.height/2);
+		setVisible(true);
+		
+		setResizable(false);//크기변경 금지
+		setButton(true);//버튼 사용여부 결정
+		setForm(true);
+		nametf.requestFocus();
+	}
+	
+	//----------------------------------------------------------------------------
+	public static void main(String[] args) {
+		new CustomerManager();
+	}
+}
